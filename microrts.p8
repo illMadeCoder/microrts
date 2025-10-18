@@ -2,12 +2,22 @@ pico-8 cartridge // http://www.pico-8.com
 version 42
 __lua__
 -- types
-function point(_x, _y) 
-   return {x=_x, y=_y}
-end
-
 function mag(_p) 
    return sqrt(_p.x*_p.x + _p.y*_p.y)
+end
+
+function is_rect_point_coll(_rect, _point)
+   local pa,pb = _rect.pa, _rect.pb
+   
+   left_x = pa.x < pb.x and pa.x or pb.x
+   right_x = left_x == pa and pb.x or pa.x
+   top_y = pa.y < pb.y and pa.y or pb.y
+   bottom_y = top_y == pa and pb.y or pa.y
+   
+   return _point.p.x >= left_x and
+      _point.p.y >= top_y and
+      _point.p.x <= right_x and
+      _point.p.y <= bottom_y 
 end
 
 -- game init
@@ -59,7 +69,7 @@ function gobj(_state, _update, _draw, _init, _destroy)
 end
 
 cursor = gobj(
-   {p=point(0,0),
+   {p={x=0, y=0},
     dragbox = {
        pa = nil,
        pb = nil,
@@ -72,35 +82,22 @@ cursor = gobj(
 
       -- dragbox initialize
       if btnf(7) == 1 then	 
-	 dragbox.pa = point(_state.p.x, _state.p.y)
-	 dragbox.pb = point(_state.p.x, _state.p.y)
+	 dragbox.pa = {x=_state.p.x, y=_state.p.y}
+	 dragbox.pb = {x=_state.p.x, y=_state.p.y}
 	 dragbox.selected = {}
       end
 
       -- dragbox continue
       if btnf(7) > 1 then
-	 dragbox.pb = point(_state.p.x, _state.p.y)
+	 dragbox.pb = {x=_state.p.x, y=_state.p.y}
       end
       
       -- select what's in dragbox
       if btnf(7) > 0 then
 	 dragbox.selected = {}
 	 for friendly in all(friendlys) do
-	    local pa,pb = 
-	       dragbox.pa, 
-	       dragbox.pb
-	    
-	    left = pa.x < pb.x and pa or pb
-	    right = left == pa and pb or pa
-	    top = pa.y < pb.y and pa or pb
-	    bottom = top == pa and pb or pa
-	    
-	    if friendly.p.x >= left.x and
-	       friendly.p.y >= top.y and
-	       friendly.p.x <= right.x and
-	       friendly.p.y <= bottom.y then
-	       
-	       add(dragbox.selected, friendly)     
+	    if is_rect_point_coll(dragbox, friendly) then
+	       add(dragbox.selected, friendly)
 	    end
 	 end
       end
@@ -130,9 +127,7 @@ gobjs = {cursor}
 
 -- cursor 
 
-move_actions = {}
-
-wizard = {p = point(63,63), 
+wizard = {p = {x=63, y=63}, 
           r=2,
           c=13,
           h=1,
@@ -141,7 +136,7 @@ wizard = {p = point(63,63),
           mana=3,
           manaf=0}
 
-knight = {p = point(40, 40),
+knight = {p = {x=40, y=40},
           r=2,
           c=5,
           h=4,
@@ -151,7 +146,7 @@ knight = {p = point(40, 40),
 friendlys = {wizard, knight}
 wizards = {wizard}
 
-dummy = {p = point(90,30),
+dummy = {p = {x=90, y=30},
          c = 4,
          r = 2,
          h = 3,
@@ -189,7 +184,7 @@ function _update60()
 
    -- -- begin move action
    -- if btnf(8) == 1 then
-   --    avg = point(0,0)
+   --    avg = {x=0, y=0}
       
    --    for friendly in all(dragbox.selected) do
    -- 	 avg.x += friendly.p.x
@@ -275,7 +270,7 @@ function _update60()
    -- 	 if magic.state == "target" 
    -- 	    and not btn(4) then
    -- 	    magic.state = "active"
-   -- 	    magic.p = point(cursor.p.x, cursor.p.y)
+   -- 	    magic.p = {x=cursor.p.x, y= cursor.p.y}
    -- 	    magic.f = 0
    -- 	 end
    --    end	
@@ -350,7 +345,6 @@ function _draw()
 		  unit.p.y - 4,
 		  8)
       end
-      
    end   
    
    if magic.state == "active" then
