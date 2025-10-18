@@ -47,14 +47,88 @@ function btnf(_b)
    return inputs[_b].f
 end
 
+-- game objects
+function gobj(_state, _update, _draw, _init, _destroy)
+   return {
+      update=_update,
+      draw=_draw,
+      state=_state,
+      init=_init,
+      destroy=_destroy
+   }
+end
+
+cursor = gobj(
+   {p=point(0,0),
+    dragbox = {
+       pa = nil,
+       pb = nil,
+       selected = {},  
+    }
+   },
+   function (_state)
+      _state.p.x, _state.p.y = stat(32),stat(33)
+      local dragbox = _state.dragbox
+
+      -- dragbox initialize
+      if btnf(7) == 1 then	 
+	 dragbox.pa = point(_state.p.x, _state.p.y)
+	 dragbox.pb = point(_state.p.x, _state.p.y)
+	 dragbox.selected = {}
+      end
+
+      -- dragbox continue
+      if btnf(7) > 1 then
+	 dragbox.pb = point(_state.p.x, _state.p.y)
+      end
+      
+      -- select what's in dragbox
+      if btnf(7) > 0 then
+	 dragbox.selected = {}
+	 for friendly in all(friendlys) do
+	    local pa,pb = 
+	       dragbox.pa, 
+	       dragbox.pb
+	    
+	    left = pa.x < pb.x and pa or pb
+	    right = left == pa and pb or pa
+	    top = pa.y < pb.y and pa or pb
+	    bottom = top == pa and pb or pa
+	    
+	    if friendly.p.x >= left.x and
+	       friendly.p.y >= top.y and
+	       friendly.p.x <= right.x and
+	       friendly.p.y <= bottom.y then
+	       
+	       add(dragbox.selected, friendly)     
+	    end
+	 end
+      end
+   end,
+   
+   function (_state)
+      local dragbox = _state.dragbox
+      if btnf(7) > 0 then
+	 rect(dragbox.pa.x, dragbox.pa.y,
+	      dragbox.pb.x, dragbox.pb.y,
+	      11)
+      end
+      
+      pset(_state.p.x, _state.p.y, magic.state == "target" and 13 or btnf(6) > 0 and 11 or 3)
+      if magic.state == "target" then
+	 circ(_state.p.x, _state.p.y,
+	      5-((f%30)/30)*5, 13)
+      end
+      
+      for selected in all(_state.dragbox.selected) do
+	 circ(selected.p.x, selected.p.y, 3, 11)
+      end
+   end
+)
+
+gobjs = {cursor}
+
 -- cursor 
-cursor = {}
-cursor.p = point(0,0)
-dragbox = {
-   pa = nil,
-   pb = nil,
-   selected = {},  
-}
 
 move_actions = {}
 
@@ -97,142 +171,115 @@ magic.f = nil
 f = 0
 
 function _update60()
+   -- input initialize per frame
    for input in all(inputs) do
       input.update()
    end
 
+   for gobj in all(gobjs) do
+      gobj.update(gobj.state)
+   end
+
    -- cursor initialize
-   cursor.p.x, cursor.p.y = stat(32),stat(33)
-   
-   -- dragbox initialize
-   if btnf(7) == 1 then
-      printh("here")
-      dragbox.pa = point(cursor.p.x, cursor.p.y)
-      dragbox.pb = point(cursor.p.x, cursor.p.y)   
-      dragbox.selected = {}
-   end
-   
-   -- dragbox continue
-   if btnf(7) > 1 then
-      dragbox.pb = point(cursor.p.x, cursor.p.y)
-   end
-   
-   -- select what's in dragbox
-   if btnf(7) > 0 then
-      dragbox.selected = {}
-      for friendly in all(friendlys) do
-	 local pa,pb = 
-	    dragbox.pa, 
-	    dragbox.pb
-	 
-	 left = pa.x < pb.x and pa or pb
-	 right = left == pa and pb or pa
-	 top = pa.y < pb.y and pa or pb
-	 bottom = top == pa and pb or pa
-	 
-	 if friendly.p.x >= left.x and
-	    friendly.p.y >= top.y and
-	    friendly.p.x <= right.x and
-	    friendly.p.y <= bottom.y then
-	    
-	    add(dragbox.selected, friendly)     
-	 end
-      end
-   end
 
-   -- begin move action
-   if btnf(8) == 1 then
-      avg = point(0,0)
+   
+ 
+   
+
+
+   -- -- begin move action
+   -- if btnf(8) == 1 then
+   --    avg = point(0,0)
       
-      for friendly in all(dragbox.selected) do
-	 avg.x += friendly.p.x
-	 avg.y += friendly.p.y     
-      end
+   --    for friendly in all(dragbox.selected) do
+   -- 	 avg.x += friendly.p.x
+   -- 	 avg.y += friendly.p.y     
+   --    end
 
-      avg.x = avg.x/#dragbox.selected
-      avg.y = avg.y/#dragbox.selected
+   --    avg.x = avg.x/#dragbox.selected
+   --    avg.y = avg.y/#dragbox.selected
       
-      for friendly in all(dragbox.selected) do
-	 friendly.offset 
-	    = point(avg.x-friendly.p.x,
-		    avg.y-friendly.p.y)
-      end
-      local move_action = {}      
-      move_action.p = 
-	 point(cursor.p.x,
-	       cursor.p.y)
-      move_action.selected = dragbox.selected
-      add(move_actions, move_action)
-   end
+   --    for friendly in all(dragbox.selected) do
+   -- 	 friendly.offset 
+   -- 	    = point(avg.x-friendly.p.x,
+   -- 		    avg.y-friendly.p.y)
+   --    end
+   --    local move_action = {}      
+   --    move_action.p = 
+   -- 	 point(cursor.p.x,
+   -- 	       cursor.p.y)
+   --    move_action.selected = dragbox.selected
+   --    add(move_actions, move_action)
+   -- end
 
-   for move_action in all(move_actions) do
-      if move_action.p then
- 	 all_moved = true
-	 for friendly in 
-	    all(move_action.selected) do
-	    delta 
-	       = point(
-		  move_action.p.x
-		  -friendly.p.x-friendly.offset.x,
-		  move_action.p.y
-		  -friendly.p.y-friendly.offset.y)
+   -- for move_action in all(move_actions) do
+   --    if move_action.p then
+   -- 	 all_moved = true
+   -- 	 for friendly in 
+   -- 	    all(move_action.selected) do
+   -- 	    delta 
+   -- 	       = point(
+   -- 		  move_action.p.x
+   -- 		  -friendly.p.x-friendly.offset.x,
+   -- 		  move_action.p.y
+   -- 		  -friendly.p.y-friendly.offset.y)
 
-	    local a = atan2(delta.x, delta.y)
-	    if not (
-	       abs(move_action.p.x
-		   -friendly.offset.x
-		   -friendly.p.x) < 1 
-	       and
-	       abs(move_action.p.y
-		   -friendly.offset.y
-		   -friendly.p.y) < 1) 
-	    then
-	       all_moved = false
-	       -- if coll move around
-	       local displace = 
-		  point(friendly.p.x + cos(a),
-			friendly.p.y + sin(a))
+   -- 	    local a = atan2(delta.x, delta.y)
+   -- 	    if not (
+   -- 	       abs(move_action.p.x
+   -- 		   -friendly.offset.x
+   -- 		   -friendly.p.x) < 1 
+   -- 	       and
+   -- 	       abs(move_action.p.y
+   -- 		   -friendly.offset.y
+   -- 		   -friendly.p.y) < 1) 
+   -- 	    then
+   -- 	       all_moved = false
+   -- 	       -- if coll move around
+   -- 	       local displace = 
+   -- 		  point(friendly.p.x + cos(a),
+   -- 			friendly.p.y + sin(a))
 	       
-	       for o_friendly in all(friendlys) do
-		  local diff = 
-		     point(o_friendly.p.x - friendly.p.x,
-			   o_friendly.p.y - friendly.p.y)
-		  if mag(diff)	<= 3 then
+   -- 	       for o_friendly in all(friendlys) do
+   -- 		  local diff = 
+   -- 		     point(o_friendly.p.x - friendly.p.x,
+   -- 			   o_friendly.p.y - friendly.p.y)
+   -- 		  if mag(diff)	<= 3 then
 		     
-		  else
-		  end						                   
-	       end
+   -- 		  else
+   -- 		  end						                   
+   -- 	       end
 	       
-	       all_moved = false
-	       friendly.p.x = displace.x
-	       friendly.p.y = displace.y
-	    end     
-	 end
-	 if all_moved then
-	    move_action.p = nil
-	    move_action.selected = {}     
-	 end
-      end
-   end
-   -- end move action
+   -- 	       all_moved = false
+   -- 	       friendly.p.x = displace.x
+   -- 	       friendly.p.y = displace.y
+   -- 	    end     
+   -- 	 end
+   -- 	 if all_moved then
+   -- 	    move_action.p = nil
+   -- 	    move_action.selected = {}     
+   -- 	 end
+   --    end
+   -- end
+   -- -- end move action
    
-   -- selected loop
-   for selected 
-      in all(dragbox.selected) do
-      if selected.t == "wizard" then
-	 if magic.state == nil     
-	    and btnp(4) then
-	    magic.state = "target"
-	 end
+   -- -- selected loop
+   -- for selected 
+   --    in all(dragbox.selected) do
+   --    if selected.t == "wizard" then
+   -- 	 if magic.state == nil     
+   -- 	    and btnp(4) then
+   -- 	    magic.state = "target"
+   -- 	 end
 	 
-	 if magic.state == "target" 
-	    and not btn(4) then
-	    magic.state = "active"
-	    magic.p = point(cursor.p.x, cursor.p.y)
-	    magic.f = 0
-	 end
-      end	
-   end
+   -- 	 if magic.state == "target" 
+   -- 	    and not btn(4) then
+   -- 	    magic.state = "active"
+   -- 	    magic.p = point(cursor.p.x, cursor.p.y)
+   -- 	    magic.f = 0
+   -- 	 end
+   --    end	
+   -- end
    
    if magic.state == "active" then
       if magic.f > 40 then
@@ -262,24 +309,16 @@ function _update60()
 end
 
 function _draw()
-   cls()	
+   cls()
 
-   if btnf(7) > 0 then
-      rect(dragbox.pa.x, dragbox.pa.y,
-	   dragbox.pb.x, dragbox.pb.y,
-	   11)
+   for gobj in all(gobjs) do
+      gobj.draw(gobj.state)
    end
    
    for unit in all(units) do
       circfill(unit.p.x, unit.p.y, 2, unit.c)
-   end
+   end     
    
-   pset(cursor.p.x, cursor.p.y, magic.state == "target" and 13 or btnf(6) > 0 and 11 or 3)		
-   
-   print(#dragbox.selected)
-   for selected in all(dragbox.selected) do
-      circ(selected.p.x, selected.p.y, 3, 11)
-   end
    
    -- draw health bar
    for unit in all(units) do
@@ -312,12 +351,7 @@ function _draw()
 		  8)
       end
       
-   end
-   
-   if magic.state == "target" then
-      circ(cursor.p.x, cursor.p.y,
-	   5-((f%30)/30)*5, 13)
-   end
+   end   
    
    if magic.state == "active" then
       circfill(magic.p.x, magic.p.y,
